@@ -47,7 +47,7 @@ def ajouter_pseudo(body: dict):
     # On vérifie que ce pseudo n'est pas déjà pris
     for u in utilisateurs:
         if u["pseudo"] == pseudo:
-            return {"message": f"Pseudo '{pseudo}' déjà pris"}
+            return {"message": f"pseudo '{pseudo}' déjà pris"}
     # On crée l'utilisateur (sans socket pour l'instant)
     utilisateurs.append({
         "pseudo": pseudo,
@@ -56,7 +56,7 @@ def ajouter_pseudo(body: dict):
         "direction": "haut",
         "instructions": []
     })
-    return {"message": f"Pseudo '{pseudo}' enregistré"}
+    return {"message": f"pseudo '{pseudo}' enregistré"}
 
 
 # ---------------------------------------------------

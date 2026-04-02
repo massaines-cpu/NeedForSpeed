@@ -1,0 +1,208 @@
+
+  <script>
+
+    // -------------------------------------------------------
+    // VARIABLES GLOBALES
+    // -------------------------------------------------------
+    let monPseudo = null;         // Le pseudo de CE joueur
+    let socket = null;            // La connexion WebSocket
+    let instructions = [];        // Les 4 instructions choisies
+
+    // On récupère automatiquement l'adresse de la machine qui héberge le jeu.
+    // Comme ça, que tu sois en local (localhost) ou sur le réseau (192.168.x.x),
+    // les autres joueurs n'ont rien à changer.
+    const HOST = window.location.hostname;  // ex: "localhost" ou "192.168.1.42"
+    const API_URL = `http://${HOST}:8000`;  // ex: "http://192.168.1.42:8000"
+    const WS_URL  = `ws://${HOST}:8000`;    // ex: "ws://192.168.1.42:8000"
+
+
+    // -------------------------------------------------------
+    // FONCTION : PING
+    // Envoie GET /ping à l'API, affiche la réponse
+    // -------------------------------------------------------
+    function ping() {
+      fetch(`${API_URL}/ping`)
+        .then(reponse => reponse.json())
+        .then(data => {
+          document.getElementById('reponse-ping').textContent = data.message;
+        })
+        .catch(() => {
+          document.getElementById('reponse-ping').textContent = 'L\'API ne répond pas';
+        });
+    }
+
+
+    // -------------------------------------------------------
+    // FONCTION : ENVOYER PSEUDO
+    // 1. POST /pseudo pour enregistrer le joueur dans l'API
+    // 2. Ouvre la connexion WebSocket /ws
+    // 3. S'identifie via le WebSocket
+    // -------------------------------------------------------
+    function envoyerPseudo() {
+      const input = document.getElementById('input-pseudo');
+      const pseudo = input.value.trim();
+
+      if (!pseudo) {
+        alert('entre un pseudo');
+        return;
+      }
+
+      monPseudo = pseudo;
+
+      // ETAPE 1 : Envoyer le pseudo à l'API via HTTP POST
+      fetch(`${API_URL}/pseudo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pseudo: pseudo })
+      })
+      .then(reponse => reponse.json())
+      .then(data => {
+        document.getElementById('reponse-pseudo').textContent = data.message;
+
+        // ETAPE 2 : Ouvrir la connexion WebSocket
+        ouvrirWebSocket();
+      })
+      .catch(() => {
+        document.getElementById('reponse-pseudo').textContent = 'erreur lors de l\'envoi';
+      });
+    }
+
+
+    // -------------------------------------------------------
+    // FONCTION : OUVRIR LE WEBSOCKET
+    // Se connecte à ws://localhost:8000/ws
+    // Et écoute les messages de l'API
+    // -------------------------------------------------------
+    function ouvrirWebSocket() {
+      socket = new WebSocket(`${WS_URL}/ws`);
+
+      // Quand le WS est bien ouvert, on s'identifie
+      socket.addEventListener('open', () => {
+        console.log('ws ouvert');
+        // On envoie notre pseudo pour que l'API sache qui on est
+        socket.send(JSON.stringify({
+          type: 'identification',
+          pseudo: monPseudo
+        }));
+      });
+
+      // Quand on reçoit un message de l'API
+      socket.addEventListener('message', (evenement) => {
+        const message = JSON.parse(evenement.data);
+
+        // L'API nous envoie la liste des utilisateurs
+        if (message.type === 'liste_utilisateurs') {
+          afficherListeJoueurs(message.data);
+          afficherVoitures(message.data);
+        }
+      });
+
+      socket.addEventListener('close', () => {
+        console.log('WebSocket fermé');
+      });
+    }
+
+
+    // -------------------------------------------------------
+    // FONCTION : AFFICHER LA LISTE DES JOUEURS (texte)
+    // -------------------------------------------------------
+    function afficherListeJoueurs(listeJoueurs) {
+      const div = document.getElementById('liste-joueurs');
+      if (listeJoueurs.length === 0) {
+        div.textContent = 'Aucun joueur connecté';
+        return;
+      }
+      div.innerHTML = listeJoueurs.map(joueur =>
+        `<div> <strong>${joueur.pseudo}</strong> — position (${joueur.position.x}, ${joueur.position.y}) — direction : ${joueur.direction}</div>`
+      ).join('');
+    }
+
+
+    // -------------------------------------------------------
+    // FONCTION : AFFICHER LES VOITURES DANS LE CIRCUIT
+    // -------------------------------------------------------
+
+    // Convertit une direction en emoji flèche
+    function directionEnFleche(direction) {
+      const fleches = {
+        haut: '↑',
+        bas: '↓',
+        gauche: '←',
+        droite: '→'
+      };
+      return fleches[direction] || '?';
+    }
+
+    function afficherVoitures(listeJoueurs) {
+      const circuit = document.getElementById('circuit');
+      circuit.innerHTML = ''; // On efface et on redessine
+
+      // Taille d'une case dans le circuit (circuit = 500px, grille 10x10)
+      const tailleCase = 50;
+
+      listeJoueurs.forEach((joueur, index) => {
+        // Créer la div voiture
+        const voiture = document.createElement('div');
+        voiture.classList.add('voiture', `couleur-${index % 4}`);
+        voiture.textContent = directionEnFleche(joueur.direction);
+
+        // Ajouter le label avec le pseudo
+        const label = document.createElement('span');
+        label.classList.add('voiture-label');
+        label.textContent = joueur.pseudo;
+        voiture.appendChild(label);
+
+        // Positionner la voiture selon x,y
+        // On limite pour que la voiture reste dans le circuit
+        const x = (joueur.position.x % 10) * tailleCase;
+        const y = (joueur.position.y % 10) * tailleCase;
+        voiture.style.left = Math.abs(x) + 'px';
+        voiture.style.top = Math.abs(y) + 'px';
+
+        circuit.appendChild(voiture);
+      });
+    }
+
+
+    // -------------------------------------------------------
+    // FONCTIONS : GESTION DES INSTRUCTIONS
+    // -------------------------------------------------------
+
+    function ajouterInstruction(lettre) {
+      if (instructions.length >= 4) {
+        alert('Tu as déjà 4 instructions ! Envoie-les ou efface-les.');
+        return;
+      }
+      instructions.push(lettre);
+      document.getElementById('instructions-choisies').textContent = instructions.join(' ');
+    }
+
+    function reinitialiserInstructions() {
+      instructions = [];
+      document.getElementById('instructions-choisies').textContent = '—';
+    }
+
+    function envoyerInstructions() {
+      if (!socket) {
+        alert('Tu dois d\'abord entrer ton pseudo et te connecter !');
+        return;
+      }
+      if (instructions.length !== 4) {
+        alert('Tu dois choisir exactement 4 instructions !');
+        return;
+      }
+
+      // On envoie les instructions via le WebSocket
+      socket.send(JSON.stringify({
+        type: 'instructions',
+        pseudo: monPseudo,
+        instructions: instructions
+      }));
+
+      document.getElementById('reponse-instructions').textContent = 'instructions envoyées, en attente des autres joueurs...';
+      reinitialiserInstructions(); // On remet à zéro l'affichage
+    }
+
+  </script>
+</body>
+</html>
