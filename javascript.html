@@ -98,7 +98,7 @@
       });
 
       socket.addEventListener('close', () => {
-        console.log('WebSocket fermé');
+        console.log('ws fermé');
       });
     }
 
@@ -109,7 +109,7 @@
     function afficherListeJoueurs(listeJoueurs) {
       const div = document.getElementById('liste-joueurs');
       if (listeJoueurs.length === 0) {
-        div.textContent = 'Aucun joueur connecté';
+        div.textContent = 'aucun joueur connecté';
         return;
       }
       div.innerHTML = listeJoueurs.map(joueur =>
@@ -170,7 +170,7 @@
 
     function ajouterInstruction(lettre) {
       if (instructions.length >= 4) {
-        alert('Tu as déjà 4 instructions ! Envoie-les ou efface-les.');
+        alert('déjà 4 instructions envoie ou efface');
         return;
       }
       instructions.push(lettre);
@@ -184,11 +184,11 @@
 
     function envoyerInstructions() {
       if (!socket) {
-        alert('Tu dois d\'abord entrer ton pseudo et te connecter !');
+        alert('entre d\'abord ton pseudo et connecte toi');
         return;
       }
       if (instructions.length !== 4) {
-        alert('Tu dois choisir exactement 4 instructions !');
+        alert('tu dois choisir que 4 instructions');
         return;
       }
 
